@@ -40,6 +40,10 @@ class FirebaseServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Allow small clock skew when verifying Firebase ID tokens
+        // (prevents "token issued in the future" errors if clocks differ)
+        if (class_exists('\Firebase\\JWT\\JWT')) {
+            \Firebase\JWT\JWT::$leeway = 60; // 60 seconds
+        }
     }
 }

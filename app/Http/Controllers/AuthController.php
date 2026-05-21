@@ -23,10 +23,15 @@ class AuthController extends Controller
 
     public function firebaseLogin(Request $request)
     {
+        $leewayInSeconds = 360; // 5 minutes
         $idToken = $request->token;
         try {
 
-            $verifiedIdToken = $this->auth->verifyIdToken($idToken);
+            $verifiedIdToken = $this->auth->verifyIdToken(
+                $idToken,
+                false,              // checkIfRevoked
+                $leewayInSeconds    // leeway
+            );
 
             $uid = $verifiedIdToken->claims()->get('sub');
 
