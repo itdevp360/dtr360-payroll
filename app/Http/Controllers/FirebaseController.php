@@ -7,10 +7,13 @@ use App\Models\FirebaseUsers;
 use App\Models\FirebaseAttendance;
 use App\Models\FirebaseFilingDocuments;
 use App\Models\FirebaseHolidays;
-use Carbon;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use DateTime;
 use DatePeriod;
 use DateInterval;
+use Kreait\Firebase\Auth;
+use Mockery\Undefined;
 
 class FirebaseController extends Controller
 {
@@ -33,199 +36,109 @@ class FirebaseController extends Controller
 
         if ($users) {
             foreach ($users as $id => $data) {
-                if(str_contains($data['department'], $dept)){
+                if ($dept === 'all' || $dept === '') {
+
                     $firebaseUsers[$data['employeeID']] = new FirebaseUsers($id, $data);
+
+                } else {
+
+                    // Check if multiple departments (e.g. "IT,FAD")
+                    $deptList = str_contains($dept, ',') ? explode(',', $dept) : [$dept];
+
+                    foreach ($deptList as $d) {
+                        if (str_contains($data['department'], trim($d))) {
+                            $firebaseUsers[$data['employeeID']] = new FirebaseUsers($id, $data);
+                            break; // stop once matched
+                        }
+                    }
+
                 }
+                
             }
         }
         return $firebaseUsers;
     }
 
     public function getAttendanceByDateRange($dept,$startDate, $endDate)
-    {   date_default_timezone_set('Asia/Manila');
-        $holidays = $this->getHolidays($startDate, $endDate);
-        $employees = $this->getEmployees($dept);
-        $docs = $this->getFiledDocumentsByDateRange($dept, $startDate, $endDate, 'dateFrom');
-        $ots = $this->getFiledDocumentsByDateRange($dept, $startDate, $endDate, 'otDate');
-        $departments = config('departments'); //fetch departments
-        $startDate = strtotime($startDate) * 1000;
-        $endDate   = strtotime($endDate) * 1000;
-        $reference = $this->database->getReference('Logs');
-        $query = $reference->orderByChild('dateTimeIn')    // 'date' is the key in your data
+    {
+        $service = new \App\Services\FirebaseAttendanceService($this->database);
+        $formatted = $service->getAttendanceByDateRange($dept, $startDate, $endDate);
+        return response()->json($formatted);
+    }
+
+    public function getDocumentsByDepartment($dept,$startDate, $endDate){
+        $reference = $this->database->getReference('FilingDocuments');
+        $query = $reference->orderByChild('date')    // 'date' is the key in your data
                         ->startAt($startDate)    // start of range
                         ->endAt($endDate);       // end of range
 
-        $logs = $query->getValue();
-        $firebaseAttendance = [];
+        $docs = $query->getValue();
 
-        if ($logs) {
-            foreach ($logs as $id => $data) {
-                if(str_contains($data['department'], $dept)){
-                    $firebaseAttendance[] = new FirebaseAttendance($id, $data);
-                }
-                
-            }
-           
-        }
-        $uniqueEmployees = collect($firebaseAttendance) //get unique employees
-        ->unique('employeeName')
-        ->values();
-        $shiftMap = [];
-        foreach ($uniqueEmployees as $employeeName) {
-            if (!empty($employeeName->guid) && isset($docs[$employeeName->guid]) && $docs[$employeeName->guid]->docType == 'Leave') {
+        $firebaseDocs = [];
 
-                $leave = $docs[$employeeName->guid];
-                $from = $leave->dateFrom;
-                $to = $leave->dateTo;
-                $start = new DateTime(substr($from, 0, 10)); // "2026-02-17"
-                $end   = new DateTime(substr($to, 0, 10));
-                $period = new DatePeriod($start, new DateInterval('P1D'), $end);
-                // dd($from);
-                foreach ($period as $date) {
-                    $leaveRow = new \stdClass();
-                    $leaveRow->id = null;
-                    $leaveRow->employeeID = $employeeName->employeeID;
-                    $leaveRow->employeeName = $employeeName->employeeName;
-                    $leaveRow->department = $employeeName->department;
-                    $leaveRow->dateTimeIn = $date->format('m/d/Y');
-                    $leaveRow->day = $date->format('l');
-                    $leaveRow->dateTimeInMs = $timestamp * 1000;
-                    $leaveRow->timeIn = null;
-                    $leaveRow->timeOut = null;
-                    $leaveRow->remarks = $docs[$employeeName->guid]->leaveType;
-                    $leaveRow->leave = $docs[$employeeName->guid]->leaveType;
+        if ($docs) {
 
-                    $firebaseAttendance[] = $leaveRow;
-                }
-                
-            }
-            if (!empty($employeeName->guid) && isset($ots[$employeeName->guid]) && $ots[$employeeName->guid]->docType == 'Overtime') {
+            // Convert incoming dept to array
+            $deptList = str_contains($dept, ',') ? explode(',', $dept) : [$dept];
 
-                $ot = $ots[$employeeName->guid];
-                $timestamp = strtotime($ot->otDate);
-                $date = date('m/d/Y', $timestamp);
-                $existingRow = collect($firebaseAttendance)->first(function ($row) use ($employeeName, $date) {
-                    return $row->employeeID == $employeeName->employeeID
-                        && $row->dateTimeIn == $date;
-                });
-                
-                if ($existingRow) {
-                    // merge remarks
-                    if (!empty($existingRow->remarks)) {
-                        if (!str_contains($existingRow->remarks, $holiday->holidayType)) {
-                            $existingRow->remarks .= ' | ' . $ot->otType . ': ' . $ot->hoursNo;
-                            $existingRow->otType = $ot->otType;
-                            $existingRow->otHours = $ot->hoursNo;
-                            
-                        }
-                    } else {
-                        $existingRow->remarks = $ot->otType . ': ' . $ot->hoursNo;
-                        $existingRow->otType = $ot->otType;
-                        $existingRow->otHours = $ot->hoursNo;
+            foreach ($docs as $id => $data) {
+
+                // Check if dept matches ANY in the list
+                $match = false;
+
+                foreach ($deptList as $d) {
+                    if (trim($data['dept']) === trim($d)) {
+                        $match = true;
+                        break;
                     }
-
                 }
-                
-            }
-            foreach ($holidays as $holiday) {
 
-                $timestamp = strtotime($holiday->holidayDate . ' 00:00:00');
-                $date = date('m/d/Y', $timestamp);
-
-                // find existing attendance row
-                $existingRow = collect($firebaseAttendance)->first(function ($row) use ($employeeName, $date) {
-                    return $row->employeeID == $employeeName->employeeID
-                        && $row->dateTimeIn == $date;
-                });
-
-                if ($existingRow) {
-                    // merge remarks
-                    if (!empty($existingRow->remarks)) {
-                        if (!str_contains($existingRow->remarks, $holiday->holidayType)) {
-                            $existingRow->remarks .= ' | ' . $holiday->holidayType;
-                            $existingRow->holiday = $holiday->holidayType;
-                            
-                        }
-                    } else {
-                        $existingRow->remarks = $holiday->holidayType;
-                        $existingRow->holiday = $holiday->holidayType;
-                    }
-
-                } else {
-                    // create new holiday row if none exists
-                    $holidayRow = new \stdClass();
-                    $holidayRow->id = null;
-                    $holidayRow->employeeID = $employeeName->employeeID;
-                    $holidayRow->employeeName = $employeeName->employeeName;
-                    $holidayRow->department = $employeeName->department;
-                    $holidayRow->dateTimeIn = $date;
-                    $holidayRow->day = date('l', $timestamp);
-                    $holidayRow->dateTimeInMs = $timestamp * 1000;
-                    $holidayRow->timeIn = null;
-                    $holidayRow->timeOut = null;
-                    $holidayRow->remarks = $holiday->holidayType;
-                    $holidayRow->holiday = $holiday->holidayType;
-
-                    $firebaseAttendance[] = $holidayRow;
+                if (
+                    $match &&
+                    $data['isApproved'] == false &&
+                    $data['docType'] != '' &&
+                    !isset($data['approveRejectBy'])
+                ) {
+                    $firebaseDocs[$data['guid']] = new FirebaseFilingDocuments($id, $data);
                 }
             }
         }
 
-        usort($firebaseAttendance, function($a, $b) {
-            $nameComparison = strcmp($a->employeeName, $b->employeeName);
-            if ($nameComparison === 0) {
-                return $a->dateTimeIn <=> $b->dateTimeIn; // ascending
-            }
-            return $nameComparison;
-        });
-
-
-        // Compute Hours Worked and append date and compute lates
-        foreach ($firebaseAttendance as $row) {
-
-            if (!empty($row->timeIn) && !empty($row->timeOut) && $row->timeIn != '-' && $row->timeOut != '-') {
-
-                $remarks = [];
-                $dayOfWeek = strtolower(date('l', strtotime($row->dateTimeIn)));
-                $currentShift = $employees[$row->employeeID]->$dayOfWeek;
-                if(isset($employees[$row->employeeID]) && $currentShift == 1){
-
-                    $shiftIn  = $employees[$row->employeeID]->shiftTimeIn;
-                    $shiftOut = $employees[$row->employeeID]->shiftTimeOut;
-                    $shiftInTime  = strtotime($row->dateTimeIn . ' ' . $shiftIn);
-                    $shiftOutTime = strtotime($row->dateTimeIn . ' ' . $shiftOut);
-                    
-                    $timeIn  = strtotime($row->timeIn);
-                    $timeOut = strtotime($row->timeOut);
-
-                    if($timeIn > $shiftInTime){
-                        $lateSeconds = $timeIn - $shiftInTime;
-                        $row->remarks .= " | Late (" . gmdate("H:i", $lateSeconds) . ")";
-                        $row->late = $lateSeconds;
-                    }
-
-                    if($timeOut < $shiftOutTime){
-                        $utSeconds = $shiftOutTime - $timeOut;
-                        $row->remarks .= " | Undertime (" . gmdate("H:i", $utSeconds) . ")";
-                        $row->undertime = $utSeconds;
-                    }
-                }
-
-                // Merge with existing remarks
-                if (!empty($remarks)) {
-                    if (!empty($row->remarks) && $row->remarks != '-') {
-                        $row->remarks .= ' | ' . implode(' | ', $remarks);
-                    } else {
-                        $row->remarks = implode(' | ', $remarks);
-                    }
-                }
-
-            } 
+        foreach ($firebaseDocs as $emp) {
+            $formatted[] = [
+                'id' => $emp->id,
+                'employeeName' => $emp->employeeName,
+                'guid' => $emp->guid ?? null,
+                'dept' => $emp->dept ?? null,
+                'date' => $emp->date ?? null,
+                'dateFrom' => $emp->dateFrom ?? null,
+                'dateTo' => $emp->dateTo ?? null,
+                'docType' => $emp->docType ?? null,
+                'correctDate' => $emp->correctDate ?? null,
+                'correctTime' => $emp->correctTime ?? null,
+                'correctBothTime' => $emp->correctBothTime ?? null,
+                'deductLeave' => $emp->remarks ?? null,
+                'empKey' => $emp->empKey ?? null,
+                'hoursNo' => $emp->hoursNo ?? 0.00,
+                'isAm' => $emp->isAm ?? null,
+                'isApproved' => $emp->isApproved ?? null,
+                'isHalfday' => $emp->isHalfday ?? null,
+                'isNextdayTimeOut' => $emp->isNextdayTimeOut ?? null,
+                'isOut' => $emp->isOut ?? null,
+                'isOvernightOt' => $emp->isOvernightOt ?? null,
+                'leaveType' => $emp->leaveType ?? null,
+                'noOfDay' => $emp->noOfDay ?? null,
+                'otDate' => $emp->otDate ?? null,
+                'otTo' => $emp->otTo ?? null,
+                'otType' => $emp->otType ?? null,
+                'otfrom' => $emp->otfrom ?? null,
+                'reason' => $emp->reason ?? null,
+                'uniqueId' => $emp->uniqueId ?? null
+            ];
         }
-
         
-        // return response()->json($firebaseAttendance);
-        return view('attendance.attendancetable', compact('firebaseAttendance'));
+        return response()->json($formatted ?? []);
+        // return $firebaseDocs;
     }
 
     public function getHolidays($startDate, $endDate)
@@ -257,9 +170,11 @@ class FirebaseController extends Controller
     {
 
         $reference = $this->database->getReference('FilingDocuments');
+        $startAt = $startDate . ' 00:00:00';
+        $endAt = $endDate . ' 23:59:59';
         $query = $reference->orderByChild($filter)    // 'date' is the key in your data
-                        ->startAt($startDate)    // start of range
-                        ->endAt($endDate);       // end of range
+                        ->startAt($startAt)    // start of range
+                        ->endAt($endAt);       // end of range
 
         $docs = $query->getValue();
 
@@ -267,9 +182,19 @@ class FirebaseController extends Controller
 
         if ($docs) {
             foreach ($docs as $id => $data) {
-                if(str_contains($data['dept'], $dept)){
+                if($dept == 'all'){
                     $firebaseDocs[$data['guid']] = new FirebaseFilingDocuments($id, $data);
                 }
+                else{
+                    $deptList = str_contains($dept, ',') ? explode(',', $dept) : [$dept];
+                    foreach ($deptList as $d) {
+                        if (str_contains($data['dept'], trim($d))) {
+                            $firebaseDocs[] = new FirebaseFilingDocuments($id, $data);
+                            break; // stop once matched
+                        }
+                    }
+                }   
+                
             }
         }
         return $firebaseDocs;
