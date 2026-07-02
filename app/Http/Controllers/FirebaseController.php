@@ -68,9 +68,9 @@ class FirebaseController extends Controller
 
     public function getDocumentsByDepartment($dept,$startDate, $endDate){
         $reference = $this->database->getReference('FilingDocuments');
-        $query = $reference->orderByChild('date')    // 'date' is the key in your data
-                        ->startAt($startDate)    // start of range
-                        ->endAt($endDate);       // end of range
+        $query = $reference->orderByChild('date')
+                        ->startAt($startDate)
+                        ->endAt($endDate);
 
         $docs = $query->getValue();
 
@@ -147,7 +147,7 @@ class FirebaseController extends Controller
         $endTimestamp   = strtotime($endDate);
 
         $reference = $this->database->getReference('Holidays');
-        $holidays = $reference->getValue(); // fetch all, then filter in PHP
+        $holidays = $reference->getValue();
 
         $firebaseHolidays = [];
 

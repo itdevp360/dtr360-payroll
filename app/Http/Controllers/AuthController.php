@@ -37,10 +37,17 @@ class AuthController extends Controller
 
             $user = $this->auth->getUser($uid);
 
+            $employees = app()->make(\App\Http\Controllers\PayrollController::class)->getAllEmployees();
+            $employee = collect($employees)->firstWhere('email', $user->email);
+
             Session::put('firebase_user', [
                 'uid' => $uid,
                 'email' => $user->email,
-                'name' => $user->displayName
+                'name' => $user->displayName,
+                'department' => $employee->dept ?? null,
+                'dept' => $employee->dept ?? null,
+                'usertype' => $employee->usertype ?? null,
+                'guid' => $employee->guid ?? null,
             ]);
             
             return response()->json([

@@ -6,6 +6,7 @@ use App\Models\FirebaseAttendance;
 use App\Models\FirebaseFilingDocuments;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\View;
 use Kreait\Firebase\Database;
 use App\Models\FirebaseUsers;
 use Carbon\Carbon;
@@ -279,6 +280,76 @@ class PayrollController extends Controller
         ]);
     }
 
+    public function getUnreadNotifications()
+    {
+        $currentDept = strtolower(trim((string) (View::shared('dept') ?? '')));
+        $notifications = $this->database->getReference('NotificationLogs')->getValue();
+        $unreadNotifications = [];
+
+        if ($notifications) {
+            foreach ($notifications as $id => $notification) {
+                $recipientDepartment = strtolower(trim((string) ($notification['recipientDepartment'] ?? '')));
+                $isHrNotification = $recipientDepartment === 'human resource';
+
+                if (($notification['status'] ?? null) === 'unread' && $isHrNotification && $currentDept === 'human resource') {
+                    $unreadNotifications[] = [
+                        'id' => $id,
+                        'type' => $notification['type'] ?? 'general',
+                        'action' => $notification['action'] ?? null,
+                        'message' => $notification['message'] ?? 'You have a new notification.',
+                        'editedBy' => $notification['editedBy'] ?? null,
+                        'attendanceId' => $notification['attendanceId'] ?? null,
+                        'employeeName' => $notification['employeeName'] ?? null,
+                        'department' => $notification['department'] ?? null,
+                        'timeIn' => $notification['timeIn'] ?? null,
+                        'previousTimeIn' => $notification['previousTimeIn'] ?? null,
+                        'timeOut' => $notification['timeOut'] ?? null,
+                        'previousTimeOut' => $notification['previousTimeOut'] ?? null,
+                        'createdAt' => $notification['createdAt'] ?? null,
+                        'status' => $notification['status'] ?? 'unread',
+                    ];
+                }
+            }
+        }
+
+        usort($unreadNotifications, function ($a, $b) {
+            return strcmp($b['createdAt'] ?? '', $a['createdAt'] ?? '');
+        });
+
+        return response()->json([
+            'notifications' => $unreadNotifications,
+        ]);
+    }
+
+    public function markNotificationAsRead($id)
+    {
+        $notificationRef = $this->database->getReference('NotificationLogs/' . $id);
+        $notification = $notificationRef->getValue();
+
+        if (!$notification) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Notification not found.',
+            ], 404);
+        }
+
+        $notificationRef->update([
+            'status' => 'read',
+            'readAt' => Carbon::now('Asia/Manila')->toDateTimeString(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Notification marked as read.',
+            'notification' => [
+                'id' => $id,
+                'message' => $notification['message'] ?? 'You have a new notification.',
+                'type' => $notification['type'] ?? 'general',
+                'createdAt' => $notification['createdAt'] ?? null,
+            ],
+        ]);
+    }
+
     public function editAttendance(Request $request)
     {
         $attendanceId = $request->input('id');
@@ -289,10 +360,29 @@ class PayrollController extends Controller
         $userType = $request->input('userType');
         $guid = $request->input('guid');
         $department = $request->input('department');
-        $editedBy = $request->input('editedBy') ?? Session::get('firebase_user.name') ?? 'System';
+        $sharedAuthUser = View::shared('authUser') ?? Session::get('firebase_user.name') ?? 'System';
+        $editedBy = $request->input('editedBy') ?? $sharedAuthUser;
 
         $timeInTimestamp = !empty($newTimeIn) ? Carbon::parse($newTimeIn)->valueOf() : null;
         $timeOutTimestamp = !empty($newTimeOut) ? Carbon::parse($newTimeOut)->valueOf() : null;
+
+        $previousAttendance = null;
+        $previousTimeIn = null;
+        $previousTimeOut = null;
+        $previousDepartment = null;
+        $previousEmployeeName = null;
+
+        if (!empty($attendanceId)) {
+            $attendanceRef = $this->database->getReference('Logs/' . $attendanceId);
+            $previousAttendance = $attendanceRef->getValue();
+
+            if ($previousAttendance) {
+                $previousTimeIn = $previousAttendance['timeIn'] ?? null;
+                $previousTimeOut = $previousAttendance['timeOut'] ?? null;
+                $previousDepartment = $previousAttendance['department'] ?? null;
+                $previousEmployeeName = $previousAttendance['employeeName'] ?? null;
+            }
+        }
 
         $attendanceData = [
             'timeIn' => $timeInTimestamp,
@@ -342,13 +432,23 @@ class PayrollController extends Controller
             $action = 'created';
         }
 
+        $message = 'Attendance record was ' . $action . ' by ' . $editedBy;
+
         $this->database->getReference('NotificationLogs')->push([
             'type' => 'attendance_edit',
             'action' => $action,
             'attendanceId' => $savedAttendanceId,
             'editedBy' => $editedBy,
             'recipientDepartment' => 'Human Resource',
-            'message' => 'Attendance record was ' . $action . ' by ' . $editedBy,
+            'employeeName' => $employeeName,
+            'department' => $department,
+            'previousEmployeeName' => $previousEmployeeName,
+            'previousDepartment' => $previousDepartment,
+            'previousTimeIn' => $previousTimeIn,
+            'previousTimeOut' => $previousTimeOut,
+            'timeIn' => $newTimeIn,
+            'timeOut' => $newTimeOut,
+            'message' => $message,
             'createdAt' => Carbon::now('Asia/Manila')->toDateTimeString(),
             'status' => 'unread',
         ]);
