@@ -1,146 +1,105 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-
-<title>Login</title>
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css" rel="stylesheet">
-<style>
-
-body{
-    font-family: Arial;
-    background:#f4f6f9;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-}
-
-.login-box{
-    background:white;
-    padding:40px;
-    width:350px;
-    border-radius:10px;
-    box-shadow:0 5px 20px rgba(0,0,0,0.1);
-}
-
-.login-box h2{
-    text-align:center;
-    margin-bottom:30px;
-}
-
-input{
-    width:100%;
-    padding:12px;
-    margin-bottom:15px;
-    border:1px solid #ddd;
-    border-radius:6px;
-}
-
-button{
-    width:100%;
-    padding:12px;
-    border:none;
-    background:#4CAF50;
-    color:white;
-    font-size:16px;
-    border-radius:6px;
-    cursor:pointer;
-}
-
-button:hover{
-    background:#45a049;
-}
-
-.error{
-    color:red;
-    margin-bottom:10px;
-}
-
-</style>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | People360</title>
+    @vite('resources/css/app.css')
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        }
+    </style>
 </head>
+<body class="min-h-screen bg-slate-100">
+    <div class="flex min-h-screen items-center justify-center px-4">
+        <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-xl">
+            <div class="mb-6 text-center">
+                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-xl font-semibold text-white">
+                    P
+                </div>
+                <h2 class="text-2xl font-semibold text-slate-900">Welcome back</h2>
+                <p class="mt-2 text-sm text-slate-500">Sign in to continue to People360</p>
+            </div>
 
-<body>
+            <div class="mb-4 text-sm text-red-500" id="error"></div>
 
-<div class="bg‑gray‑100 flex items‑center justify‑center h‑screen">
-        <h2 class="text‑2xl font‑bold text‑center mb‑6">Sign In</h2>
-        <p class="text‑red‑500 text‑center" id="error"></p>
-        <input id="email" type="email" placeholder="Email"
-            class="w‑full border‑2 border‑gray‑200 p‑2 rounded mt‑2">
-        <input id="password" type="password" placeholder="Password"
-            class="w‑full border‑2 border‑gray‑200 p‑2 rounded mt‑4">
-        <button onclick="login()"
-            class="w‑full bg‑blue‑600 text‑white p‑2 rounded mt‑6 hover:bg‑blue‑700">
-            Login
-        </button>
-</div>
+            <div class="space-y-4">
+                <input id="email" type="email" placeholder="Email" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100">
+                <input id="password" type="password" placeholder="Password" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100">
+                <button onclick="login()" class="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
+                    Sign In
+                </button>
+            </div>
+        </div>
+    </div>
 
-<script type="module">
+    <div id="loadingOverlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50">
+        <div class="rounded-2xl bg-white px-6 py-5 shadow-xl">
+            <div class="flex items-center gap-3">
+                <svg class="h-5 w-5 animate-spin text-slate-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-sm font-medium text-slate-700">Signing you in...</p>
+            </div>
+        </div>
+    </div>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-import { 
-getAuth, 
-signInWithEmailAndPassword 
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        const firebaseConfig = {
+            apiKey: "{{ env('FIREBASE_API_KEY') }}",
+            authDomain: "{{ env('FIREBASE_AUTH_DOMAIN') }}",
+            projectId: "{{ env('FIREBASE_PROJECT_ID') }}"
+        };
 
-const firebaseConfig = {
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorBox = document.getElementById('error');
 
-    apiKey: "{{ env('FIREBASE_API_KEY') }}",
-    authDomain: "{{ env('FIREBASE_AUTH_DOMAIN') }}",
-    projectId: "{{ env('FIREBASE_PROJECT_ID') }}"
-
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-
-window.login = async function(){
-
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    try{
-
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-        const token = await userCredential.user.getIdToken();
-
-        const response = await fetch("{{ url('/firebase-login') }}", {
-
-            method:'POST',
-            headers:{
-                'Content-Type':'application/json',
-                'X-CSRF-TOKEN':'{{ csrf_token() }}'
-            },
-            body: JSON.stringify({ token: token })
-
-        });
-
-        const data = await response.json();
-
-        if(data.status === 'success'){
-
-            // window.location = "{{ url('attendance/IT/2026-02-11/2026-02-25') }}";
-            window.location = "{{ url('dashboard') }}";
-
-        }else{
-
-            document.getElementById('error').innerText = data.message;
-
+        function showLoading(show) {
+            if (!loadingOverlay) return;
+            loadingOverlay.classList.toggle('hidden', !show);
+            loadingOverlay.classList.toggle('flex', show);
         }
 
-    }catch(e){
+        window.login = async function () {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            errorBox.innerText = '';
+            showLoading(true);
 
-        document.getElementById('error').innerText = e.message;
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const token = await userCredential.user.getIdToken();
 
-    }
+                const response = await fetch("{{ url('/firebase-login') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ token: token })
+                });
 
-}
+                const data = await response.json();
 
-</script>
-
+                if (data.status === 'success') {
+                    window.location = "{{ url('dashboard') }}";
+                } else {
+                    errorBox.innerText = data.message || 'Unable to sign in.';
+                    showLoading(false);
+                }
+            } catch (e) {
+                errorBox.innerText = e.message || 'Unable to sign in.';
+                showLoading(false);
+            }
+        }
+    </script>
 </body>
 </html>

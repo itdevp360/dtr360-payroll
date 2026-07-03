@@ -23,19 +23,18 @@ Route::get('/logout', function() {
     Session::forget('firebase_user');
     return redirect('/login');
 });
-Route::get('/dashboard', function () {
-    if (!Session::has('firebase_user')) {
-        return redirect('/login');
-    }
-    return view('home.dashboard');
-});
 Route::middleware(['firebase.auth'])->group(function () {
+    Route::get('/dashboard', function () {
+        return view('home.dashboard');
+    });
     Route::get('/firebase-users', [FirebaseController::class, 'getEmployees']);
     Route::get('/firebase-attendance', [FirebaseController::class, 'getAttendance']);
     Route::get('/firebase-holidays/{start}/{end}', [FirebaseController::class, 'getHolidays']);
     Route::get('/firebase-docs', [FirebaseController::class, 'getFiledDocuments']);
     Route::get('/attendance/{dept}/{start}/{end}', [FirebaseController::class, 'getAttendanceByDateRange']);
     Route::get('/documents/{dept}/{start}/{end}', [FirebaseController::class, 'getFiledDocumentsByDateRange']);
+    Route::get('/notifications/unread', [PayrollController::class, 'getUnreadNotifications'])->name('notifications.unread');
+    Route::post('/notifications/{id}/read', [PayrollController::class, 'markNotificationAsRead'])->name('notifications.read');
 });
 
 Route::get('/firebase-test', function(\Kreait\Firebase\Contract\Auth $auth){
@@ -69,6 +68,10 @@ Route::prefix('payroll')
         Route::post('/approve-documents', 
             [PayrollController::class, 'approveDocuments'])
             ->name('approval.documents');
+
+        Route::post('/edit-attendance', 
+            [PayrollController::class, 'editAttendance'])
+            ->name('edit.attendance');
 
         // Reject single Documents
         Route::post('/reject-document', 

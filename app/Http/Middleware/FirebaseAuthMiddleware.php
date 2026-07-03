@@ -23,16 +23,13 @@ class FirebaseAuthMiddleware
 
         $email = Session::get('firebase_user.email');
 
-        // get employees (your existing function)
-        $employees = app()->make(\App\Http\Controllers\PayrollController::class)->getAllEmployees();
+        $firebaseUser = Session::get('firebase_user');
 
-        $user = collect($employees)->firstWhere('email', $email);
-        
-        if ($user) {
-            View::share('authUser', $user->empName);
-            View::share('dept', $user->dept);
-            View::share('usertype', $user->usertype);
-            View::share('guid', $user->guid);
+        if ($firebaseUser) {
+            View::share('authUser', $firebaseUser['name'] ?? $firebaseUser['email'] ?? 'User');
+            View::share('dept', $firebaseUser['department'] ?? $firebaseUser['dept'] ?? null);
+            View::share('usertype', $firebaseUser['usertype'] ?? null);
+            View::share('guid', $firebaseUser['guid'] ?? null);
         }
 
         return $next($request);
