@@ -182,6 +182,8 @@
             const usertype = "{{ $usertype }}";
             let table = null;
 
+            
+
             function loadTable(startDate, endDate){
 
                 let url = `${baseUrl}/${dept}/${startDate}/${endDate}`;
@@ -387,6 +389,24 @@
             $('#rejectModal').on('hidden.bs.modal', function () {
                 $('#rejectReason').val('');
             });
+            const formatManilaTime = (value) => {
+                if (!value) return '';
+
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return value;
+
+                return new Intl.DateTimeFormat('en-PH', {
+                    timeZone: 'Asia/Manila',
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: true
+                }).format(date);
+            };
+
             $('#documentTable').on('click', '.viewBtn', function(){
 
                 let data = table.row($(this).closest('tr')).data();
@@ -412,9 +432,9 @@
                 }else if(data.docType === 'Overtime'){
 
                     extraHtml = `
-                        <p><strong>OT Date:</strong> ${data.otDate}</p>
-                        <p><strong>Start Time:</strong> ${data.otfrom}</p>
-                        <p><strong>End Time:</strong> ${data.otTo}</p>
+                        <p><strong>OT Date:</strong> ${formatManilaTime(data.otDate)}</p>
+                        <p><strong>Start Time:</strong> ${formatManilaTime(data.otfrom)}</p>
+                        <p><strong>End Time:</strong> ${formatManilaTime(data.otTo)}</p>
                         <p><strong>Reason:</strong> ${data.reason}</p>
                     `;
 
