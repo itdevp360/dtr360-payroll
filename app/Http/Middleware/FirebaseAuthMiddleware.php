@@ -21,11 +21,15 @@ class FirebaseAuthMiddleware
             return redirect('/login');
         }
 
-        $email = Session::get('firebase_user.email');
-
         $firebaseUser = Session::get('firebase_user');
 
-        if ($firebaseUser) {
+        if (is_array($firebaseUser)) {
+            $firebaseUser['name'] = $firebaseUser['name'] ?? $this->resolveEmployeeName($firebaseUser['email'] ?? null);
+
+            if (!empty($firebaseUser['name'])) {
+                Session::put('firebase_user', $firebaseUser);
+            }
+
             View::share('authUser', $firebaseUser['name'] ?? $firebaseUser['email'] ?? 'User');
             View::share('dept', $firebaseUser['department'] ?? $firebaseUser['dept'] ?? null);
             View::share('usertype', $firebaseUser['usertype'] ?? null);
@@ -33,5 +37,32 @@ class FirebaseAuthMiddleware
         }
 
         return $next($request);
+    }
+
+    protected function resolveEmployeeName(?string $email): ?string
+    {
+        if (empty($email)) {
+            return null;
+        }
+
+        try {
+            $employeeData = app('firebase.database')
+                ->getReference('Employee')
+                ->orderByChild('email')
+                ->equalTo($email)
+                ->getValue();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (!is_array($employeeData)) {
+            return null;
+        }
+
+        $employee = reset($employeeData);
+
+        return is_array($employee)
+            ? ($employee['name'] ?? $employee['fullName'] ?? $employee['employeeName'] ?? null)
+            : null;
     }
 }

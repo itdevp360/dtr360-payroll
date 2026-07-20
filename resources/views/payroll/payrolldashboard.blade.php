@@ -283,6 +283,51 @@
                 $('#editHoursWorked').val(hours.toFixed(2));
             }
 
+            function formatInputDate(date){
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            function buildCutoffRange(type){
+                const today = new Date();
+
+                if(type === 'second'){
+                    const start = new Date(today.getFullYear(), today.getMonth(), 11);
+                    const end = new Date(today.getFullYear(), today.getMonth(), 25);
+                    return {
+                        startDate: formatInputDate(start),
+                        endDate: formatInputDate(end)
+                    };
+                }
+
+                const start = new Date(today.getFullYear(), today.getMonth() - 1, 26);
+                const end = new Date(today.getFullYear(), today.getMonth(), 10);
+
+                return {
+                    startDate: formatInputDate(start),
+                    endDate: formatInputDate(end)
+                };
+            }
+
+            function getCurrentCutoffRange(){
+                const today = new Date();
+                const day = today.getDate();
+
+                if(day >= 11 && day <= 25){
+                    return buildCutoffRange('second');
+                }
+
+                return buildCutoffRange('first');
+            }
+
+            function applyDateRange(startDate, endDate){
+                $('#startDate').val(startDate);
+                $('#endDate').val(endDate);
+                loadTable(startDate, endDate, usertype, guid);
+            }
+
             function loadTable(startDate, endDate, usertype, guid){
                 let selectedDept = $('#departmentFilter').length 
                     ? $('#departmentFilter').val() 
@@ -569,33 +614,30 @@
 
             // Cutoff 26 prev month -> 10 current month
             $('#cutoff1').click(function(){
-                let today = new Date();
-                let start = new Date(today.getFullYear(), today.getMonth()-1, 26);
-                let end = new Date(today.getFullYear(), today.getMonth(), 10);
-
-                $('#startDate').val(start.toLocaleDateString('en-CA'));
-                $('#endDate').val(end.toLocaleDateString('en-CA'));
+                const { startDate, endDate } = buildCutoffRange('first');
+                applyDateRange(startDate, endDate);
             });
 
             // Cutoff 11 -> 25 current month
             $('#cutoff2').click(function(){
-                let today = new Date();
-                let start = new Date(today.getFullYear(), today.getMonth(), 11);
-                let end = new Date(today.getFullYear(), today.getMonth(), 25);
-
-                $('#startDate').val(start.toLocaleDateString('en-CA'));
-                $('#endDate').val(end.toLocaleDateString('en-CA'));
+                const { startDate, endDate } = buildCutoffRange('second');
+                applyDateRange(startDate, endDate);
             });
 
              // Full month
             $('#thisMonth').click(function(){
-                let today = new Date();
-                let start = new Date(today.getFullYear(), today.getMonth(), 1);
-                let end = new Date(today.getFullYear(), today.getMonth()+1, 0);
+                const today = new Date();
+                const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                const end = new Date(today.getFullYear(), today.getMonth()+1, 0);
 
-                $('#startDate').val(start.toLocaleDateString('en-CA'));
-                $('#endDate').val(end.toLocaleDateString('en-CA'));
+                const startDate = formatInputDate(start);
+                const endDate = formatInputDate(end);
+
+                applyDateRange(startDate, endDate);
             });
+
+            const { startDate, endDate } = getCurrentCutoffRange();
+            applyDateRange(startDate, endDate);
 
         });
 
