@@ -54,8 +54,9 @@
                     'IH',
                     'Testing',
                     'Training',
-                    'FAD',
-                    'IMS'
+                    'Finance',
+                    'IMS',
+                    'Admin'
                 ];
             @endphp
 
@@ -315,17 +316,24 @@
                 const today = new Date();
                 const day = today.getDate();
 
-                if(day >= 11 && day <= 25){
+                // Treat the beginning of the month through the 15th as the previous cutoff,
+                // and switch to the mid-month cutoff after the 15th.
+                if(day > 15){
                     return buildCutoffRange('second');
                 }
 
                 return buildCutoffRange('first');
             }
 
-            function applyDateRange(startDate, endDate){
+            function loadDateRange(startDate, endDate){
                 $('#startDate').val(startDate);
                 $('#endDate').val(endDate);
                 loadTable(startDate, endDate, usertype, guid);
+            }
+
+            function applyDateRange(startDate, endDate){
+                $('#startDate').val(startDate);
+                $('#endDate').val(endDate);
             }
 
             function loadTable(startDate, endDate, usertype, guid){
@@ -637,7 +645,7 @@
             });
 
             const { startDate, endDate } = getCurrentCutoffRange();
-            applyDateRange(startDate, endDate);
+            loadDateRange(startDate, endDate);
 
         });
 
