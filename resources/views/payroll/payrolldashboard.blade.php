@@ -96,8 +96,8 @@
             </div>
             @endif
             <button id="filterBtn"
-                class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                Load Attendance
+                class="btn btn-outline-primary btn-sm rounded-pill px-3 shadow-sm">
+                <span class="me-2">🔎</span> Load Attendance
             </button>
 
         </div>
@@ -106,18 +106,18 @@
         <div class="flex gap-2 mt-3">
 
             <button id="cutoff1"
-                class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-                26 prev - 10 current
+                class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+                <span class="me-2">📅</span> 26 prev - 10 current
             </button>
 
             <button id="cutoff2"
-                class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-                11 - 25
+                class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+                <span class="me-2">📅</span> 11 - 25
             </button>
 
             <button id="thisMonth"
-                class="bg-gray-200 px-3 py-1 rounded hover:bg-gray-300">
-                Full Month
+                class="btn btn-outline-secondary btn-sm rounded-pill px-3 shadow-sm">
+                <span class="me-2">📅</span> Full Month
             </button>
 
         </div>

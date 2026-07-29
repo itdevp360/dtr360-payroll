@@ -97,6 +97,11 @@ Route::prefix('payroll')
         Route::get('/reports', [PayrollController::class, 'reports'])
             ->name('reports');
 
+        // Filing Documents
+        Route::get('/filing-documents', function () {
+            return view('payroll.filingdocuments');
+        })->name('filing.documents');
+
         // Payroll settings
         Route::get('/settings', [PayrollController::class, 'settings'])
             ->name('settings');
