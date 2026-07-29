@@ -462,6 +462,10 @@
                             orderable: false,
                             className: 'text-center',
                             render:function(data, type, row){
+                                if (String(usertype).trim() !== 'Approver') {
+                                    return '';
+                                }
+
                                 return `<button type="button" class="btn btn-link btn-sm edit-row">Edit</button>`;
                             }
                         }
