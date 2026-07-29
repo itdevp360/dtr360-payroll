@@ -197,6 +197,8 @@ class FirebaseAttendanceService
         $end->modify('+1 day');
         $period = new DatePeriod($start, new DateInterval('P1D'), $end);
         $leaveTypeText = $leave->isHalfday ? 'Half day' : $leave->leaveType;
+        $leavePrefix = (property_exists($leave, 'deductLeave') && $leave->deductLeave === false) ? 'Not Deducted: ' : '';
+        $leaveLabel = $leavePrefix . $leaveTypeText;
 
         foreach ($period as $date) {
             $formattedDate = $date->format('m/d/Y');
@@ -209,8 +211,14 @@ class FirebaseAttendanceService
             }
 
             if ($existingRow) {
-                $leaveText = $leave->isApproved ? $leaveTypeText : 'Pending: ' . $leaveTypeText;
-                $existingRow->remarks = $existingRow->remarks == 'Absent' ? $leaveText : trim(($existingRow->remarks ?? '') . ' | ' . $leaveText);
+                $leaveText = $leave->isApproved ? $leaveLabel : 'Pending: ' . $leaveLabel;
+                $existingRow->remarks = ($existingRow->remarks == 'Absent')
+                ? $leaveText
+                : (
+                    empty($existingRow->remarks)
+                        ? $leaveText
+                        : $existingRow->remarks . ' | ' . $leaveText
+                );
                 $existingRow->leave = $leave->leaveType;
                 $existingRow->isAbsent = false;
                 $existingRow->isHalfday = $leave->isHalfday;
@@ -224,7 +232,7 @@ class FirebaseAttendanceService
                 $leaveRow->day = $date->format('l');
                 $leaveRow->timeIn = null;
                 $leaveRow->timeOut = null;
-                $leaveRow->remarks = $leave->isApproved ? $leaveTypeText : 'Pending: ' . $leaveTypeText;
+                $leaveRow->remarks = $leave->isApproved ? $leaveLabel : 'Pending: ' . $leaveLabel;
                 $leaveRow->leave = $leave->leaveType;
                 $leaveRow->isApproved = $leave->isApproved;
                 $leaveRow->isCancelled = $leave->isCancelled;
@@ -273,20 +281,26 @@ class FirebaseAttendanceService
             $timeIn  = strtotime($row->timeIn);
             $timeOut = strtotime($row->timeOut);
 
+            $hasHalfDayRemark = is_string($row->remarks)
+                && stripos($row->remarks, 'Half day') !== false
+                && stripos($row->remarks, 'Not Deducted') === false;
+
             // Role-based computation: drivers ('D') use different rules
             if (isset($employee->userRole) && $employee->userRole === 'D') {
-                $this->computeForRoleD($row, $shiftInTime, $shiftOutTime, $timeIn, $timeOut, $currentShift, $employee, $holidays);
+                $this->computeForRoleD($row, $shiftInTime, $shiftOutTime, $timeIn, $timeOut, $currentShift, $employee, $holidays, $hasHalfDayRemark);
             } else {
                 $graceSeconds = 5 * 60; // 5-minute grace period
-                if ($timeIn > $shiftInTime + $graceSeconds) {
+                if (!$hasHalfDayRemark && $timeIn > $shiftInTime + $graceSeconds) {
                     $lateMinutes = floor(($timeIn - ($shiftInTime + $graceSeconds)) / 60);
-                    $row->remarks .= " Late {$lateMinutes} mins";
+                    $lateText = 'Late ' . $lateMinutes . ' mins';
+                    $row->remarks = empty($row->remarks) ? $lateText : $row->remarks . ' | ' . $lateText;
                     $row->late = $lateMinutes;
                 }
 
-                if ($timeOut < $shiftOutTime) {
+                if (!$hasHalfDayRemark && $timeOut < $shiftOutTime) {
                     $utMinutes = floor(($shiftOutTime - $timeOut) / 60);
-                    $row->remarks .= " | Undertime {$utMinutes} mins";
+                    $utText = 'Undertime ' . $utMinutes . ' mins';
+                    $row->remarks = empty($row->remarks) ? $utText : $row->remarks . ' | ' . $utText;
                     $row->undertime = $utMinutes;
                 }
             }
@@ -305,7 +319,7 @@ class FirebaseAttendanceService
      * Compute hours/remarks for employees with userRole 'D'.
      * Current rule: 15-minute grace period for late arrival; undertime same as default.
      */
-    protected function computeForRoleD(&$row, $shiftInTime, $shiftOutTime, $timeIn, $timeOut, $currentShift, $employee, $holidays)
+    protected function computeForRoleD(&$row, $shiftInTime, $shiftOutTime, $timeIn, $timeOut, $currentShift, $employee, $holidays, $hasHalfDayRemark = false)
     {
         $graceSeconds = 15 * 60; // 15 minutes
 
@@ -661,14 +675,14 @@ class FirebaseAttendanceService
         $row->nightShiftSpecialNonWorkingRestDayHours = $nightShiftSpecialNonWorkingRestDayHours;
 
         // Late
-        if ($timeIn > ($shiftInTime + $graceSeconds)) {
+        if (!$hasHalfDayRemark && $timeIn > ($shiftInTime + $graceSeconds)) {
             $lateMinutes = floor(($timeIn - $shiftInTime) / 60);
             $row->remarks .= " Late {$lateMinutes} mins";
             $row->late = $lateMinutes;
         }
 
         // Undertime (compared to normalized shiftOutTime)
-        if ($timeOut < $shiftOutTime) {
+        if (!$hasHalfDayRemark && $timeOut < $shiftOutTime) {
             $utMinutes = floor(($shiftOutTime - $timeOut) / 60);
             $row->remarks .= " | Undertime {$utMinutes} mins";
             $row->undertime = $utMinutes;
