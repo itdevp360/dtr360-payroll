@@ -608,6 +608,7 @@
                         timeIn: updatedTimeIn,
                         timeOut: updatedTimeOut,
                         employeeID: currentRowData.employeeID || '',
+                        guid: currentRowData.guid || '',
                         employeeName: currentRowData.employeeName || '',
                         department: currentRowData.department || '',
                         editedBy: '{{ Session::get('firebase_user.name') ?? 'System' }}'

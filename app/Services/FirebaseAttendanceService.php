@@ -139,10 +139,15 @@ class FirebaseAttendanceService
     }
 
     protected function applyDocuments(&$firebaseAttendance, $uniqueEmployees, $docs, $ots, $holidays, $employees)
-    {
+    {   
+
+
         foreach ($uniqueEmployees as $employeeName) {
+
             foreach ($docs as $doc) {
+                $docsContainer[] = $doc;
                 if ($doc->guid == $employeeName->guid && $doc->docType == 'Leave') {
+                    
                     $this->applyLeave($firebaseAttendance, $employeeName, $doc);
                 }
             }
@@ -186,10 +191,15 @@ class FirebaseAttendanceService
                 }
             }
         }
+
     }
 
     protected function applyLeave(&$firebaseAttendance, $employeeName, $leave)
     {
+        if($leave->employeeName == 'Mark Christian T. Dela Cruz'){
+            dd($leave);
+        }
+        
         $from = $leave->dateFrom;
         $to = $leave->dateTo;
         $start = new DateTime(substr($from, 0, 10));
@@ -804,6 +814,7 @@ class FirebaseAttendanceService
                     $missingRow->hoursWorked = 0.00;
                     $missingRow->remarks = 'Absent';
                     $missingRow->isAbsent = true;
+                    $missingRow->guid = $employees[$employeeName->employeeID]->guid;
                     $firebaseAttendance[] = $missingRow;
                 }
             }
@@ -853,6 +864,7 @@ class FirebaseAttendanceService
                 'employeeID' => $emp->employeeID,
                 'employeeName' => $emp->employeeName,
                 'department' => $emp->department,
+                'guid' => $emp->guid ?? null,
                 'dateTimeIn' => $emp->dateTimeIn,
                 'day' => $emp->day,
                 'hoursWorked' => $emp->hoursWorked ?? 0.00,
