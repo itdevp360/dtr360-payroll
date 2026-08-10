@@ -394,9 +394,8 @@ class PayrollController extends Controller
             $attendanceData['employeeID'] = $employeeId;
         }
 
-        if (!empty($guid)) {
-            $attendanceData['guid'] = $guid;
-        }
+        // Always include guid (from request or session). Use fallback value when not available so records always have an identifier.
+        $attendanceData['guid'] = $guid;
 
         if (!empty($employeeName)) {
             $attendanceData['employeeName'] = $employeeName;

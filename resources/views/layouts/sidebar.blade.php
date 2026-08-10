@@ -28,6 +28,10 @@
             <span class="mr-3 text-slate-500">◫</span>
             Payroll
         </a>
+        <a href="{{ url('/payroll/filing-documents') }}" class="flex items-center rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900">
+            <span class="mr-3 text-slate-500">📄</span>
+            Filing Documents
+        </a>
         <a href="{{ url('/settings') }}" class="flex items-center rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-900">
             <span class="mr-3 text-slate-500">⚙</span>
             Settings
