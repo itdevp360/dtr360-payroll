@@ -196,10 +196,7 @@ class FirebaseAttendanceService
 
     protected function applyLeave(&$firebaseAttendance, $employeeName, $leave)
     {
-        if($leave->employeeName == 'Mark Christian T. Dela Cruz'){
-            dd($leave);
-        }
-        
+
         $from = $leave->dateFrom;
         $to = $leave->dateTo;
         $start = new DateTime(substr($from, 0, 10));
