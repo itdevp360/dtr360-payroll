@@ -48,7 +48,6 @@ class PayrollController extends Controller
     
     //Bulk approval
     public function approveDocuments(Request $request){
-        // dd($request);
         $ids = $request->ids;
         $approver = $request->approver;
         $timestamp = now()->format('Y-m-d H:i:s.u');
