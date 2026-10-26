@@ -117,7 +117,7 @@ class FirebaseController extends Controller
                 'correctDate' => $emp->correctDate ?? null,
                 'correctTime' => $emp->correctTime ?? null,
                 'correctBothTime' => $emp->correctBothTime ?? null,
-                'deductLeave' => $emp->remarks ?? null,
+                'deductLeave' => $emp->deductLeave ?? null,
                 'empKey' => $emp->empKey ?? null,
                 'hoursNo' => $emp->hoursNo ?? 0.00,
                 'isAm' => $emp->isAm ?? null,
@@ -199,6 +199,14 @@ class FirebaseController extends Controller
         }
         return $firebaseDocs;
         
+    }
+
+    public function getOwnDocuments($dept,$startDate, $endDate, $usertype, $guid)
+    {
+        $service = new \App\Services\FirebaseAttendanceService($this->database);
+        $formatted = $service->getOwnDocuments($dept, $startDate, $endDate, $usertype, $guid);
+
+        return response()->json($formatted);
     }
 
     // Add a new user

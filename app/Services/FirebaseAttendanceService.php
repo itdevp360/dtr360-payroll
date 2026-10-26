@@ -21,6 +21,83 @@ class FirebaseAttendanceService
         $this->database = $database ?? app('firebase.database');
     }
 
+    public function getOwnDocuments($dept, $startDate, $endDate, $usertype, $guid)
+    {
+        date_default_timezone_set('Asia/Manila');
+
+        $docs = $this->getFiledDocumentsByDateRange($dept, $startDate, $endDate, 'dateFrom');
+        $ots = $this->getFiledDocumentsByDateRange($dept, $startDate, $endDate, 'otDate');
+        $firebaseDocs = [];
+        if (trim($usertype) === 'Employee') {
+
+            foreach ($docs as $id => $data) {
+                    if (str_contains($data->guid, trim($guid))) {
+                        $firebaseDocs[] = new FirebaseFilingDocuments($id, $data);
+                    }
+
+                }
+            foreach ($ots as $id => $data) {
+                    if (str_contains($data->guid, trim($guid))) {
+                        $firebaseDocs[] = new FirebaseFilingDocuments($id, $data);
+                    }
+                    
+                }
+        } elseif (trim($usertype) === 'Approver') {
+
+            foreach ($docs as $id => $data) {
+                    if ( trim($dept) === $data->dept) {
+                        
+                        $firebaseDocs[] = $data;
+                        
+                    }
+
+                }
+            foreach ($ots as $id => $data) {
+                    if ( trim($dept) === $data->dept) {
+                        $firebaseDocs[] = $data;
+                    }
+                    
+                }
+
+        }
+
+        foreach ($firebaseDocs as $emp) {
+            $formatted[] = [
+                'id' => $emp->id,
+                'employeeName' => $emp->employeeName,
+                'guid' => $emp->guid ?? null,
+                'dept' => $emp->dept ?? null,
+                'date' => $emp->date ?? null,
+                'dateFrom' => $emp->dateFrom ?? null,
+                'dateTo' => $emp->dateTo ?? null,
+                'docType' => $emp->docType ?? null,
+                'correctDate' => $emp->correctDate ?? null,
+                'correctTime' => $emp->correctTime ?? null,
+                'correctBothTime' => $emp->correctBothTime ?? null,
+                'deductLeave' => $emp->deductLeave ?? null,
+                'empKey' => $emp->empKey ?? null,
+                'hoursNo' => $emp->hoursNo ?? 0.00,
+                'isAm' => $emp->isAm ?? null,
+                'isApproved' => $emp->isApproved ?? null,
+                'isHalfday' => $emp->isHalfday ?? null,
+                'isNextdayTimeOut' => $emp->isNextdayTimeOut ?? null,
+                'isOut' => $emp->isOut ?? null,
+                'isOvernightOt' => $emp->isOvernightOt ?? null,
+                'leaveType' => $emp->leaveType ?? null,
+                'noOfDay' => $emp->noOfDay ?? null,
+                'otDate' => $emp->otDate ?? null,
+                'otTo' => $emp->otTo ?? null,
+                'otType' => $emp->otType ?? null,
+                'otfrom' => $emp->otfrom ?? null,
+                'reason' => $emp->reason ?? null,
+                'uniqueId' => $emp->uniqueId ?? null
+            ];
+        }
+        
+        return response()->json($formatted ?? []);
+
+    }
+
     public function getAttendanceByDateRange($dept, $startDate, $endDate, $usertype, $guid)
     {
         date_default_timezone_set('Asia/Manila');

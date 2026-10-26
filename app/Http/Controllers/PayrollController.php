@@ -151,6 +151,22 @@ class PayrollController extends Controller
         
     }
 
+    public function retractDocument(Request $request){
+        $approver = $request->approver;
+        $timestamp = now()->format('Y-m-d H:i:s.u');
+        $docs = $this->database->getReference('FilingDocuments/'. $request->id);
+        if($docs) {
+            $docs->update([
+                'isCancelled'=> true,
+                'cancellationDate'=> $timestamp
+            ]);
+            return response()->json([
+                'success' => true
+            ]);
+        }
+        
+    }
+
     public function approveRejectDocuments($docs, $isApproved, $approver, $timestamp){
         $docs->update([
                 'isApproved'=> true,
