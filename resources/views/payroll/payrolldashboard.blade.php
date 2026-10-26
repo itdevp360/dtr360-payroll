@@ -526,7 +526,7 @@
                 pushIf('Special Night OT', data.specialNightOt);
                 pushIf('Special(Rest) OT', data.specialRestOt);
                 pushIf('Special(Rest) Night OT', data.specialRestNightOt);
-
+                console.log(data);
                 return parts.join(' | ');
             }
 

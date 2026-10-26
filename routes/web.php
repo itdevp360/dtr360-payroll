@@ -83,6 +83,11 @@ Route::prefix('payroll')
             [PayrollController::class, 'rejectMultipleDocuments'])
             ->name('reject.multiple'); 
 
+        // Retract multiple Documents
+        Route::post('/retract-document', 
+            [PayrollController::class, 'retractDocument'])
+            ->name('retract.document'); 
+
         // Approve Documents
         Route::post('/approve-document', 
             [PayrollController::class, 'approveDocument'])
@@ -101,6 +106,10 @@ Route::prefix('payroll')
         Route::get('/filing-documents', function () {
             return view('payroll.filingdocuments');
         })->name('filing.documents');
+
+        Route::get('/filing-documents/{dept}/{startDate}/{endDate}/{usertype}/{guid}',
+            [FirebaseController::class, 'getOwnDocuments'])
+            ->name('filing.documents.own');
 
         // Payroll settings
         Route::get('/settings', [PayrollController::class, 'settings'])

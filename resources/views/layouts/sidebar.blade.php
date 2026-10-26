@@ -42,4 +42,5 @@
 <script>
     const userDept = "{{ $dept ?? '' }}";
     const usertype = "{{ $usertype ?? '' }}";
+    
 </script>
